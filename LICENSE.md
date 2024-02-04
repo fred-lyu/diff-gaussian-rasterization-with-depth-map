@@ -1,5 +1,19 @@
-Gaussian-Splatting License  
+Gaussian-Splatting License with Depth Map
 ===========================  
+
+# Example
+```python
+    rendered_image, rendered_depth, radii = rasterizer(
+        means3D = means3D,
+        means2D = means2D,
+        shs = shs,
+        colors_precomp = colors_precomp,
+        opacities = opacity,
+        scales = scales,
+        rotations = rotations,
+        cov3D_precomp = cov3D_precomp)
+```
+
 
 **Inria** and **the Max Planck Institut for Informatik (MPII)** hold all the ownership rights on the *Software* named **gaussian-splatting**.  
 The *Software* is in the process of being registered with the Agence pour la Protection des  
