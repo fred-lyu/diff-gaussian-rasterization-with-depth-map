@@ -272,7 +272,8 @@ renderCUDA(
 	uint32_t* __restrict__ n_contrib,
 	const float* __restrict__ bg_color,
 	float* __restrict__ out_color,
-	float* __restrict__ out_depth)
+	float* __restrict__ out_depth,
+	float* __restrict__ out_depth_loss)
 {
 	// Identify current tile and associated min/max pixel range.
 	auto block = cg::this_thread_block();
@@ -377,6 +378,15 @@ renderCUDA(
 		for (int ch = 0; ch < CHANNELS; ch++)
 			out_color[ch * H * W + pix_id] = C[ch] + T * bg_color[ch];
 		out_depth[pix_id] = D;
+
+		// 计算L1深度结构化损失
+		for (int i = 0; i < n_contrib[pix_id]; i++)
+		{
+            int range_index = range.x + i;
+            int coll_id = point_list[range_index];
+            out_depth_loss[pix_id] += out_depth[pix_id] - depths[coll_id];
+		}
+		out_depth_loss[pix_id] /= n_contrib[pix_id];
 	}
 }
 
@@ -393,7 +403,8 @@ void FORWARD::render(
 	uint32_t* n_contrib,
 	const float* bg_color,
 	float* out_color,
-	float* out_depth)
+	float* out_depth,
+	float* out_depth_loss)
 {
 	renderCUDA<NUM_CHANNELS> << <grid, block >> > (
 		ranges,
@@ -407,7 +418,8 @@ void FORWARD::render(
 		n_contrib,
 		bg_color,
 		out_color,
-		out_depth);
+		out_depth,
+		out_depth_loss);
 }
 
 void FORWARD::preprocess(int P, int D, int M,
