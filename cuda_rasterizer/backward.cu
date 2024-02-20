@@ -560,8 +560,8 @@ renderCUDA(
 			const float c_d = collected_depths[j];
 			accum_rec_d = last_alpha * last_depth + (1.f - last_alpha) * accum_rec_d;
 			last_depth = c_d;
-			// 如果深度影响不透明度，会导致颜色无法收敛
-// 			dL_dalpha += (c_d - accum_rec_d) * dL_dpixel_d;
+			// 如果深度影响不透明度，会导致颜色无法收敛 这种是从一开始就要添加深度loss
+ 			dL_dalpha += (c_d - accum_rec_d) * dL_dpixel_d;
 			if (last_contributor > 0)
 			    atomicAdd(&(dL_ddepths[global_id]), (dpixel_ddepth - 1/last_contributor) * dL_dpixel_d);
 
