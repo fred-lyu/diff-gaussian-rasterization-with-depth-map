@@ -32,6 +32,7 @@ namespace CudaRasterizer
 		float* depths;
 		char* scanning_space;
 		bool* clamped;
+		float* radius;
 		int* internal_radii;
 		float2* means2D;
 		float* cov3D;
@@ -47,7 +48,9 @@ namespace CudaRasterizer
 	{
 		uint2* ranges;
 		uint32_t* n_contrib;
+		uint32_t* n_contrib_d;
 		float* accum_alpha;
+		float* accum_alpha_d;
 
 		static ImageState fromChunk(char*& chunk, size_t N);
 	};

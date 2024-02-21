@@ -169,6 +169,7 @@ __global__ void preprocessCUDA(int P, int D, int M,
 	const int W, int H,
 	const float tan_fovx, float tan_fovy,
 	const float focal_x, float focal_y,
+	float* radius,
 	int* radii,
 	float2* points_xy_image,
 	float* depths,
@@ -230,6 +231,7 @@ __global__ void preprocessCUDA(int P, int D, int M,
 	float lambda1 = mid + sqrt(max(0.1f, mid * mid - det));
 	float lambda2 = mid - sqrt(max(0.1f, mid * mid - det));
 	float my_radius = ceil(3.f * sqrt(max(lambda1, lambda2)));
+    radius[idx] = my_radius;
 	float2 point_image = { ndc2Pix(p_proj.x, W), ndc2Pix(p_proj.y, H) };
 	uint2 rect_min, rect_max;
 	getRect(point_image, my_radius, rect_min, rect_max, grid);
@@ -265,11 +267,14 @@ renderCUDA(
 	const uint32_t* __restrict__ point_list,
 	int W, int H,
 	const float2* __restrict__ points_xy_image,
+	const float* __restrict__ radius,
 	const float* __restrict__ features,
 	const float* __restrict__ depths,
 	const float4* __restrict__ conic_opacity,
 	float* __restrict__ final_T,
+	float* __restrict__ final_T_d,
 	uint32_t* __restrict__ n_contrib,
+	uint32_t* __restrict__ n_contrib_d,
 	const float* __restrict__ bg_color,
 	float* __restrict__ out_color,
 	float* __restrict__ out_depth,
@@ -285,7 +290,7 @@ renderCUDA(
 	float2 pixf = { (float)pix.x, (float)pix.y };
 
 	// Check if this thread is associated with a valid pixel or outside.
-	bool inside = pix.x < W&& pix.y < H;
+	bool inside = pix.x < W && pix.y < H;
 	// Done threads can help with fetching, but don't rasterize
 	bool done = !inside;
 
@@ -305,6 +310,8 @@ renderCUDA(
 	uint32_t contributor = 0;
 	uint32_t last_contributor = 0;
 	float C[CHANNELS] = { 0 };
+	uint32_t contributor_d = 0;
+	float T_d = 0.0;
 	float D = 0;
 
 	// Iterate over batches until all done or range is complete
@@ -359,7 +366,15 @@ renderCUDA(
 			// Eq. (3) from 3D Gaussian splatting paper.
 			for (int ch = 0; ch < CHANNELS; ch++)
 				C[ch] += features[collected_id[j] * CHANNELS + ch] * alpha * T;
-            D += collected_z[j] * alpha * T;
+//             D += collected_z[j] * alpha * T;
+            float radius2 = radius[collected_id[j]]*radius[collected_id[j]];
+            if (d.x*d.x + d.y*d.y < radius2)
+            {
+                contributor_d++;
+                D += collected_z[j] * con_o.w;
+                T_d += con_o.w;
+            }
+
 
 			T = test_T;
 
@@ -377,16 +392,22 @@ renderCUDA(
 		n_contrib[pix_id] = last_contributor;
 		for (int ch = 0; ch < CHANNELS; ch++)
 			out_color[ch * H * W + pix_id] = C[ch] + T * bg_color[ch];
-		out_depth[pix_id] = D;
-
-		// 计算L1深度结构化损失
-		for (int i = 0; i < n_contrib[pix_id]; i++)
+		if (contributor_d > 0)
 		{
-            int range_index = range.x + i;
-            int coll_id = point_list[range_index];
-            out_depth_loss[pix_id] += out_depth[pix_id] - depths[coll_id];
+			out_depth[pix_id] = D / T_d;
+		    n_contrib_d[pix_id] = contributor_d;
+		    final_T_d[pix_id] = T_d;
 		}
-		out_depth_loss[pix_id] /= n_contrib[pix_id];
+
+
+// 		// 计算L1深度结构化损失
+// 		for (int i = 0; i < n_contrib[pix_id]; i++)
+// 		{
+//             int range_index = range.x + i;
+//             int coll_id = point_list[range_index];
+//             out_depth_loss[pix_id] += out_depth[pix_id] - depths[coll_id];
+// 		}
+// 		out_depth_loss[pix_id] /= n_contrib[pix_id];
 	}
 }
 
@@ -396,11 +417,14 @@ void FORWARD::render(
 	const uint32_t* point_list,
 	int W, int H,
 	const float2* means2D,
+	const float* radius,
 	const float* colors,
 	const float* depths,
 	const float4* conic_opacity,
 	float* final_T,
+	float* final_T_d,
 	uint32_t* n_contrib,
+	uint32_t* n_contrib_d,
 	const float* bg_color,
 	float* out_color,
 	float* out_depth,
@@ -411,11 +435,14 @@ void FORWARD::render(
 		point_list,
 		W, H,
 		means2D,
+		radius,
 		colors,
 		depths,
 		conic_opacity,
 		final_T,
+		final_T_d,
 		n_contrib,
+		n_contrib_d,
 		bg_color,
 		out_color,
 		out_depth,
@@ -438,6 +465,7 @@ void FORWARD::preprocess(int P, int D, int M,
 	const int W, int H,
 	const float focal_x, float focal_y,
 	const float tan_fovx, float tan_fovy,
+	float* radius,
 	int* radii,
 	float2* means2D,
 	float* depths,
@@ -465,6 +493,7 @@ void FORWARD::preprocess(int P, int D, int M,
 		W, H,
 		tan_fovx, tan_fovy,
 		focal_x, focal_y,
+		radius,
 		radii,
 		means2D,
 		depths,

@@ -425,10 +425,13 @@ renderCUDA(
 	const float* __restrict__ bg_color,
 	const float2* __restrict__ points_xy_image,
 	const float4* __restrict__ conic_opacity,
+	const float* __restrict__ radius,
 	const float* __restrict__ colors,
 	const float* __restrict__ depths,
 	const float* __restrict__ final_Ts,
+	const float* __restrict__ final_Ts_d,
 	const uint32_t* __restrict__ n_contrib,
+	const uint32_t* __restrict__ n_contrib_d,
 	const float* __restrict__ dL_dpixels,
 	const float* __restrict__ dL_dpixels_d,
 	float3* __restrict__ dL_dmean2D,
@@ -464,6 +467,9 @@ renderCUDA(
 	// product of all (1 - alpha) factors. 
 	const float T_final = inside ? final_Ts[pix_id] : 0;
 	float T = T_final;
+	const float alphas_d = final_Ts_d[pix_id];
+	const float inv_alphas_d = 1 / alphas_d;
+
 
 	// We start from the back. The ID of the last contributing
 	// Gaussian is known from each pixel from the forward.
@@ -558,12 +564,18 @@ renderCUDA(
 
             // 计算深度梯度
 			const float c_d = collected_depths[j];
-			accum_rec_d = last_alpha * last_depth + (1.f - last_alpha) * accum_rec_d;
-			last_depth = c_d;
-			// 如果深度影响不透明度，会导致颜色无法收敛 这种是从一开始就要添加深度loss
- 			dL_dalpha += (c_d - accum_rec_d) * dL_dpixel_d;
-			if (last_contributor > 0)
-			    atomicAdd(&(dL_ddepths[global_id]), (dpixel_ddepth - 1/last_contributor) * dL_dpixel_d);
+// 			accum_rec_d = last_alpha * last_depth + (1.f - last_alpha) * accum_rec_d;
+// 			last_depth = c_d;
+// 			// 如果深度影响不透明度，会导致颜色无法收敛 这种是从一开始就要添加深度loss
+//  			dL_dalpha += (c_d - accum_rec_d) * dL_dpixel_d;
+            float radius2 = radius[global_id]*radius[global_id];
+			if (n_contrib_d[pix_id] > 0 && d.x*d.x + d.y*d.y < radius2)
+			{
+			    atomicAdd(&(dL_ddepths[global_id]), con_o.w * inv_alphas_d * dL_dpixel_d);
+			    atomicAdd(&(dL_dopacity[global_id]), c_d * (alphas_d - con_o.w) * inv_alphas_d * inv_alphas_d * dL_dpixel_d);
+			}
+// 			    atomicAdd(&(dL_ddepths[global_id]), 1/n_contrib_d[pix_id] * dL_dpixel_d);
+
 
 			dL_dalpha *= T;
 			// Update last alpha (to be used in the next iteration)
@@ -675,10 +687,13 @@ void BACKWARD::render(
 	const float* bg_color,
 	const float2* means2D,
 	const float4* conic_opacity,
+	const float* radius,
 	const float* colors,
 	const float* depths,
 	const float* final_Ts,
+	const float* final_Ts_d,
 	const uint32_t* n_contrib,
+	const uint32_t* n_contrib_d,
 	const float* dL_dpixels,
 	const float* dL_dpixels_d,
 	float3* dL_dmean2D,
@@ -694,10 +709,13 @@ void BACKWARD::render(
 		bg_color,
 		means2D,
 		conic_opacity,
+		radius,
 		colors,
 		depths,
 		final_Ts,
+		final_Ts_d,
 		n_contrib,
+		n_contrib_d,
 		dL_dpixels,
 		dL_dpixels_d,
 		dL_dmean2D,

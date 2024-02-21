@@ -99,6 +99,8 @@ class _RasterizeGaussians(torch.autograd.Function):
 
     @staticmethod
     def backward(ctx, grad_out_color, grad_out_depth, grad_out_depth_loss, grad_out_radii):
+        # print(torch.mean(grad_out_color[grad_out_color > 0]).detach().item())
+        # print(torch.mean(grad_out_depth[grad_out_depth>0]).detach().item())
 
         # Restore necessary values from context
         num_rendered = ctx.num_rendered
@@ -119,7 +121,7 @@ class _RasterizeGaussians(torch.autograd.Function):
                 raster_settings.tanfovx, 
                 raster_settings.tanfovy, 
                 grad_out_color,
-                grad_out_depth_loss,
+                grad_out_depth,
                 sh, 
                 raster_settings.sh_degree, 
                 raster_settings.campos,
