@@ -473,7 +473,7 @@ renderCUDA(
 	const float T_final = inside ? final_Ts[pix_id] : 0;
 	float T = T_final;
 	const float alphas_d = final_Ts_d[pix_id];
-	const float inv_alphas_d = 1 / alphas_d;
+	const float inv_alphas_d = 1.0 / alphas_d;
 
 
 	// We start from the back. The ID of the last contributing
@@ -596,9 +596,10 @@ renderCUDA(
 			if (n_contrib_d[pix_id] > 0 && d.x*d.x + d.y*d.y < radius2)
 			{
 // 			    printf("renderCUDA -> atomicAdd : %.10f\n", 1.0 / n_contrib_d[pix_id] * dL_dpixel_d);
-			    atomicAdd(&(dL_ddepths[global_id]), 1.0 / n_contrib_d[pix_id] * dL_dpixel_d);
-// 			    atomicAdd(&(dL_ddepths[global_id]), con_o.w * inv_alphas_d * dL_dpixel_d);
-// 			    atomicAdd(&(dL_dopacity[global_id]), c_d * (alphas_d - con_o.w) * inv_alphas_d * inv_alphas_d * dL_dpixel_d);
+// 			    atomicAdd(&(dL_ddepths[global_id]), 1.0 / n_contrib_d[pix_id] * dL_dpixel_d);
+// 			    atomicAdd(&(dL_ddepths[global_id]), dL_dpixel_d);
+			    atomicAdd(&(dL_ddepths[global_id]), con_o.w * inv_alphas_d * dL_dpixel_d);
+			    atomicAdd(&(dL_dopacity[global_id]), c_d * (alphas_d - con_o.w) * inv_alphas_d * inv_alphas_d * dL_dpixel_d);
 			}
 // 			    atomicAdd(&(dL_ddepths[global_id]), 1/n_contrib_d[pix_id] * dL_dpixel_d);
 

@@ -397,7 +397,7 @@ renderCUDA(
 		{
 			out_depth[pix_id] = D / T_d;
 		    n_contrib_d[pix_id] = contributor_d;
-// 		    final_T_d[pix_id] = T_d;
+		    final_T_d[pix_id] = T_d;
 		}
 
 
