@@ -449,6 +449,11 @@ renderCUDA(
 	const uint32_t pix_id = W * pix.y + pix.x;
 	const float2 pixf = { (float)pix.x, (float)pix.y };
 
+// 	if(pix_id == 0)
+// 	{
+// 	    printf("renderCUDA -> dL_dpixels_d[0] : %f\n", dL_dpixels_d[0]);
+// 	}
+
 	const bool inside = pix.x < W&& pix.y < H;
 	const uint2 range = ranges[block.group_index().y * horizontal_blocks + block.group_index().x];
 
@@ -481,11 +486,18 @@ renderCUDA(
 	float accum_rec_d = 0;
 	float dL_dpixel_d;
 	if (inside)
+	{
 		for (int i = 0; i < C; i++)
 		{
             dL_dpixel[i] = dL_dpixels[i * H * W + pix_id];
-            dL_dpixel_d = dL_dpixels_d[pix_id];
 		}
+		dL_dpixel_d = dL_dpixels_d[pix_id];
+// 		if(pix_id == 0)
+// 	    {
+// 	        printf("renderCUDA -> dL_dpixel_d : %f\n", dL_dpixel_d);
+// 	    }
+	}
+
 
 
 	float last_alpha = 0;
@@ -564,15 +576,29 @@ renderCUDA(
 
             // 计算深度梯度
 			const float c_d = collected_depths[j];
+// 			if(pix_id == 0)
+// 	        {
+// 	            printf("renderCUDA -> c_d : %f\n", c_d);
+// 	        }
 // 			accum_rec_d = last_alpha * last_depth + (1.f - last_alpha) * accum_rec_d;
 // 			last_depth = c_d;
 // 			// 如果深度影响不透明度，会导致颜色无法收敛 这种是从一开始就要添加深度loss
 //  			dL_dalpha += (c_d - accum_rec_d) * dL_dpixel_d;
             float radius2 = radius[global_id]*radius[global_id];
+//             if(pix_id == 0)
+// 	        {
+// 	            printf("renderCUDA -> d.x : %f\n", d.x);
+// 	            printf("renderCUDA -> d.y : %f\n", d.y);
+// 	            printf("renderCUDA -> d.x*d.x + d.y*d.y : %f\n", d.x*d.x + d.y*d.y);
+// 	            printf("renderCUDA -> radius2 : %f\n", radius2);
+// 	            printf("renderCUDA -> n_contrib_d[global_id] : %d\n", n_contrib_d[pix_id]);
+// 	        }
 			if (n_contrib_d[pix_id] > 0 && d.x*d.x + d.y*d.y < radius2)
 			{
-			    atomicAdd(&(dL_ddepths[global_id]), con_o.w * inv_alphas_d * dL_dpixel_d);
-			    atomicAdd(&(dL_dopacity[global_id]), c_d * (alphas_d - con_o.w) * inv_alphas_d * inv_alphas_d * dL_dpixel_d);
+// 			    printf("renderCUDA -> atomicAdd : %.10f\n", 1.0 / n_contrib_d[pix_id] * dL_dpixel_d);
+			    atomicAdd(&(dL_ddepths[global_id]), 1.0 / n_contrib_d[pix_id] * dL_dpixel_d);
+// 			    atomicAdd(&(dL_ddepths[global_id]), con_o.w * inv_alphas_d * dL_dpixel_d);
+// 			    atomicAdd(&(dL_dopacity[global_id]), c_d * (alphas_d - con_o.w) * inv_alphas_d * inv_alphas_d * dL_dpixel_d);
 			}
 // 			    atomicAdd(&(dL_ddepths[global_id]), 1/n_contrib_d[pix_id] * dL_dpixel_d);
 

@@ -99,8 +99,10 @@ class _RasterizeGaussians(torch.autograd.Function):
 
     @staticmethod
     def backward(ctx, grad_out_color, grad_out_depth, grad_out_depth_loss, grad_out_radii):
-        # print(torch.mean(grad_out_color[grad_out_color > 0]).detach().item())
-        # print(torch.mean(grad_out_depth[grad_out_depth>0]).detach().item())
+        # print(1, torch.mean(grad_out_color[grad_out_color != 0]).detach().item())
+        # print(2, torch.mean(grad_out_depth[grad_out_depth != 0]).detach().item())
+        # print(3, torch.mean(grad_out_depth_loss[grad_out_depth_loss != 0]).detach().item())
+        # print(4, torch.mean(grad_out_radii[grad_out_radii != 0]).detach().item())
 
         # Restore necessary values from context
         num_rendered = ctx.num_rendered
