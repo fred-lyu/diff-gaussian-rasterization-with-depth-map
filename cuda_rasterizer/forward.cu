@@ -371,9 +371,9 @@ renderCUDA(
             if (d.x*d.x + d.y*d.y < radius2)
             {
                 contributor_d++;
-                D += collected_z[j];
-//                 D += collected_z[j] * con_o.w;
-//                 T_d += con_o.w;
+//                 D += collected_z[j];
+                D += collected_z[j] * con_o.w;
+                T_d += con_o.w;
             }
 
 
@@ -395,7 +395,7 @@ renderCUDA(
 			out_color[ch * H * W + pix_id] = C[ch] + T * bg_color[ch];
 		if (contributor_d > 0)
 		{
-			out_depth[pix_id] = D / contributor_d;
+			out_depth[pix_id] = D / T_d;
 		    n_contrib_d[pix_id] = contributor_d;
 // 		    final_T_d[pix_id] = T_d;
 		}
